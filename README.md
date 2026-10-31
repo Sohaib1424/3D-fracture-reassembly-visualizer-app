@@ -13,7 +13,7 @@ from scattered to reassembled.
 
 To start on a folder straight away, drag the folder onto `start.bat`, or run
 
-    python serve.py "E:\path\to\dumps"
+    python serve.py path/to/dumps
 
 Needs Python 3.8 or later, standard library only. Chrome or Edge work best:
 there **Open folder** remembers the folder for the next visit. Firefox opens
@@ -26,14 +26,26 @@ name is read again.
 
 ## Making dumps
 
-From the thesis repository, one dump per scene (in a notebook cell, from the
-repository root):
+Dumps are made with `scripts/dump_prediction.py` from the reassembly
+repository, **Equivariance-3D-Reassembly**. That repository is private for now
+and cannot be shared. Once it is public, you can run the commands below
+yourself, train a model from scratch, and make dumps of your own model's
+predictions.
 
-    subprocess.run([sys.executable, "-m", "scripts.dump_prediction",
-                    "--root_dir", "<data>", "--checkpoint", "<run>/last.pt",
-                    "--scene", "everyday_compressed/Mug/<id>/fractured_3",
-                    "--rotations", "matched", "--scatter-seed", "-1",
-                    "--out", "dumps/<run>/<name>.npz"])
+Until then, my own predictions can be downloaded from
+[Google Drive](GOOGLE_DRIVE_LINK_HERE) and opened here to inspect them for
+yourself.
+
+To make a dump, one per scene, run this from the repository root:
+
+    python -m scripts.dump_prediction \
+        --root_dir <data> --checkpoint <run>/last.pt \
+        --scene everyday_compressed/Mug/<id>/fractured_3 \
+        --rotations matched --scatter-seed -1 \
+        --out dumps/<run>/<name>.npz
+
+`<data>` is the dataset root, `<run>` the training run folder that holds the
+checkpoint, and `<name>` any name for the dump.
 
 `--list --split val` prints the scene keys. `--rotations network` dumps the
 rotation head's rotations instead of the ones fitted from the matches;
