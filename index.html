@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Reassembly Visualizer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 9l11-5 2 9-5 6z' fill='%235b8ad6'/%3E%3Cpath d='M17 13l11-3-3 14-9 4-4-9z' fill='%23d96b52'/%3E%3Cpath d='M15 4l2 9-5 6 4 9' fill='none' stroke='%23c9a037' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+  <script>
+    // Browsers do not run this page's modules from a file:// address.
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('empty-title').textContent = 'Start the visualizer with start.bat';
+        document.getElementById('empty-text').textContent = 'Browsers do not run this page straight from a file. '
+          + 'Double-click start.bat in this folder (or run python serve.py) and the page opens in your browser.';
+        document.getElementById('empty-actions').hidden = true;
+      });
+    }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Prediction dumps">
+      <header class="sidebar-head">
+        <h1 class="app-name">Reassembly Visualizer</h1>
+        <button type="button" class="icon-button" id="theme-button" aria-label="Use the dark theme" title="Switch between light and dark">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path class="sun" d="M10 6.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6zM10 1.8v2M10 16.2v2M3.3 3.3l1.4 1.4M15.3 15.3l1.4 1.4M1.8 10h2M16.2 10h2M3.3 16.7l1.4-1.4M15.3 4.7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path class="moon" d="M15.5 12.6A6.5 6.5 0 0 1 7.4 4.5a6.5 6.5 0 1 0 8.1 8.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+
+      <div class="folder-bar">
+        <button type="button" class="button primary" id="open-folder">Open folder</button>
+        <button type="button" class="button" id="reopen-folder" hidden></button>
+        <button type="button" class="icon-button" id="refresh-folder" aria-label="Scan the folder again" title="Scan the folder again" hidden>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.2 10a6.2 6.2 0 1 1-1.8-4.4M16.4 2.8v3.6h-3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="file" id="folder-input" webkitdirectory multiple hidden>
+      </div>
+
+      <div class="folder-summary" id="folder-summary" hidden>
+        <p class="folder-name" id="folder-name"></p>
+        <p class="folder-count" id="folder-count"></p>
+      </div>
+
+      <label class="filter" id="filter-label" hidden>
+        <span class="visually-hidden">Filter dumps</span>
+        <input type="search" id="filter" placeholder="Filter by name or folder" autocomplete="off" spellcheck="false">
+      </label>
+
+      <div class="tree" id="tree" role="tree" aria-label="Dumps in the folder"></div>
+      <p class="sidebar-note" id="sidebar-note">No folder open yet.</p>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar">
+        <div class="modes" id="modes" role="group" aria-label="Views to show"></div>
+        <div class="toolbar-end">
+          <div class="segmented" id="colour-mode" role="group" aria-label="Colour the pieces by">
+            <button type="button" data-colour="pieces" aria-pressed="true">Piece colours</button>
+            <button type="button" data-colour="rotation" aria-pressed="false">Rotation error</button>
+            <button type="button" data-colour="position" aria-pressed="false">Position loss</button>
+          </div>
+          <details class="menu" id="view-menu">
+            <summary class="button">View</summary>
+            <div class="menu-panel">
+              <fieldset>
+                <legend>Scale</legend>
+                <label><input type="radio" name="scale" value="fit"> Fit each view</label>
+                <label><input type="radio" name="scale" value="same"> The same in every view</label>
+              </fieldset>
+              <fieldset>
+                <legend>Scattered pieces</legend>
+                <label class="range" title="Only the drawing changes: the model sees every piece centred">
+                  <span class="visually-hidden">How far apart</span>
+                  <span class="range-end" aria-hidden="true">Closer</span>
+                  <input type="range" id="spread" min="0.2" max="1.5" step="0.05" value="1" aria-describedby="spread-value">
+                  <span class="range-end" aria-hidden="true">Apart</span>
+                </label>
+                <output id="spread-value" for="spread">Drawn as dumped</output>
+              </fieldset>
+              <fieldset>
+                <legend>Up axis</legend>
+                <label><input type="radio" name="up" value="z"> Z, as Breaking Bad stores objects</label>
+                <label><input type="radio" name="up" value="y"> Y</label>
+              </fieldset>
+              <fieldset>
+                <legend>Surfaces</legend>
+                <label><input type="radio" name="shading" value="smooth"> Smooth</label>
+                <label><input type="radio" name="shading" value="faceted"> Faceted</label>
+              </fieldset>
+              <button type="button" class="button" id="snapshot" title="A PNG of the views as they are now, on a transparent background">Save image</button>
+            </div>
+          </details>
+          <button type="button" class="button" id="reset-view" title="Double-clicking the view does the same">Reset view</button>
+          <button type="button" class="icon-button" id="details-button" aria-controls="details-panel" aria-pressed="true" aria-label="Details panel" title="Show or hide the details panel">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 3.8v12.4" stroke="currentColor" stroke-width="1.5"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <div class="backdrops" id="backdrops"></div>
+        <canvas id="canvas" aria-label="Pieces in 3D. Drag to turn, scroll to zoom, right-drag to move, double-click to reset."></canvas>
+        <div class="labels" id="labels"></div>
+        <div class="tooltip" id="tooltip" role="status" hidden></div>
+        <div class="empty" id="empty">
+          <h2 id="empty-title">Open a folder of prediction dumps</h2>
+          <p id="empty-text">Pick the folder where you keep the .npz files that scripts/dump_prediction.py writes. Every subfolder with dumps appears in the sidebar, and the files stay on this computer.</p>
+          <div class="empty-actions" id="empty-actions">
+            <button type="button" class="button primary" id="empty-open">Open folder</button>
+            <button type="button" class="button" id="demo-button">Try the demo</button>
+          </div>
+        </div>
+        <div class="loading" id="loading" hidden><span class="spinner" aria-hidden="true"></span><span id="loading-text">Reading</span></div>
+        <div class="drop-hint" id="drop-hint" hidden>Drop .npz files to open them</div>
+      </div>
+
+      <div class="player" id="player">
+        <button type="button" class="icon-button play" id="play" aria-label="Play">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path class="icon-play" d="M6.5 4.6v10.8l8.6-5.4z" fill="currentColor"/><path class="icon-pause" d="M6 4.5h2.6v11H6zM11.4 4.5H14v11h-2.6z" fill="currentColor"/></svg>
+        </button>
+        <div class="seam" id="seam">
+          <svg viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+            <defs><clipPath id="seam-clip"><rect id="seam-fill" x="0" y="0" width="0" height="12"></rect></clipPath></defs>
+            <path class="crack" d=""></path>
+            <path class="gold" d="" clip-path="url(#seam-clip)"></path>
+          </svg>
+          <input type="range" id="scrub" min="0" max="1000" step="1" value="0" aria-label="Reassembly progress">
+        </div>
+        <output id="progress" for="scrub">0%</output>
+        <label class="select">
+          <span class="visually-hidden">Speed</span>
+          <select id="speed">
+            <option value="0.5">0.5×</option>
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+          </select>
+        </label>
+        <label class="select">
+          <span class="visually-hidden">Playback</span>
+          <select id="loop">
+            <option value="pingpong">Back and forth</option>
+            <option value="loop">Loop</option>
+            <option value="once">Once</option>
+          </select>
+        </label>
+        <button type="button" class="icon-button" id="help-button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="5" width="16" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 8h1.4M8.3 8h1.4M11.6 8h1.4M15 8h0M5 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </main>
+
+    <aside class="details" id="details-panel" aria-label="Details of the open dump">
+      <button type="button" class="icon-button details-close" id="details-close" aria-label="Close the details">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div id="details"></div>
+    </aside>
+  </div>
+
+  <dialog class="help" id="help" aria-labelledby="help-title">
+    <h2 id="help-title">Keyboard shortcuts</h2>
+    <dl>
+      <div><dt><kbd>Space</kbd></dt><dd>Play or pause</dd></div>
+      <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Step the reassembly back or forward</dd></div>
+      <div><dt><kbd>Home</kbd> <kbd>End</kbd></dt><dd>Jump to scattered or assembled</dd></div>
+      <div><dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>Next or previous dump in the sidebar</dd></div>
+      <div><dt><kbd>C</kbd></dt><dd>Colour by piece, rotation error or position loss</dd></div>
+      <div><dt><kbd>R</kbd></dt><dd>Reset the view</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>Show every piece again after picking one</dd></div>
+    </dl>
+    <p>In the view: drag to turn, scroll to zoom, right-drag to move, click a piece to pick it out, double-click to reset. Rows in the pieces table pick pieces out too. Drop .npz files on the view to open them without a folder.</p>
+    <form method="dialog"><button class="button primary" type="submit">Close</button></form>
+  </dialog>
+</body>
+</html>
