@@ -33,8 +33,9 @@ yourself, train a model from scratch, and make dumps of your own model's
 predictions.
 
 Until then, my own predictions can be downloaded from
-[Google Drive](GOOGLE_DRIVE_LINK_HERE) and opened here to inspect them for
-yourself.
+[Google Drive](https://drive.google.com/drive/folders/1m2TZpX_lFWkgJ1kIbO9hnv-SJrvYpg92?usp=sharing)
+and opened here to inspect them for yourself. For now the folder only holds
+the `everyday_compressed` validation subset.
 
 To make a dump, one per scene, run this from the repository root:
 
